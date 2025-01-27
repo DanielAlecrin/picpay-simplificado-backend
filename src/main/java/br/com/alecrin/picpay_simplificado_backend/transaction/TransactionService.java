@@ -1,9 +1,12 @@
 package br.com.alecrin.picpay_simplificado_backend.transaction;
 
+import java.util.List;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import br.com.alecrin.picpay_simplificado_backend.authorization.AuthorizerService;
+import br.com.alecrin.picpay_simplificado_backend.notification.NotificationService;
 import br.com.alecrin.picpay_simplificado_backend.wallet.Wallet;
 import br.com.alecrin.picpay_simplificado_backend.wallet.WalletRepository;
 import br.com.alecrin.picpay_simplificado_backend.wallet.WalletType;
@@ -13,11 +16,16 @@ public class TransactionService {
     private final TransactionRepository transactionRepository;
     private final WalletRepository walletRepository;
     private final AuthorizerService authorizerService;
+    private final NotificationService notificationService;
 
-    public TransactionService(TransactionRepository transactionRepository, WalletRepository walletRepository, AuthorizerService authorizerService) {
+    public TransactionService(TransactionRepository transactionRepository,
+        WalletRepository walletRepository,
+        AuthorizerService authorizerService,
+        NotificationService notificationService) {
         this.transactionRepository = transactionRepository;
         this.walletRepository = walletRepository;
         this.authorizerService = authorizerService;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -27,17 +35,24 @@ public class TransactionService {
 
         var newTransaction = transactionRepository.save(transaction);
 
-        var wallet = walletRepository.findById(transaction.payer()).get();
-        walletRepository.save(wallet.debit(transaction.value()));
+        var walletPayer = walletRepository.findById(transaction.payer()).get();
+        var walletPayee = walletRepository.findById(transaction.payee()).get();
+        walletRepository.save(walletPayer.debit(transaction.value()));
+        walletRepository.save(walletPayee.credit(transaction.value()));
 
         // - Chamar serviços externos
         // authorize transaction
         authorizerService.authorize(transaction);
 
+        // notificação
+        notificationService.notify(transaction);
 
-        
 
         return newTransaction;
+    }
+
+    public List<Transaction> list() {
+        return this.transactionRepository.findAll();
     }
 
     /**
