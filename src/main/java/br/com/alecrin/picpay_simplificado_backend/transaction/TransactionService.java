@@ -1,7 +1,9 @@
 package br.com.alecrin.picpay_simplificado_backend.transaction;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import br.com.alecrin.picpay_simplificado_backend.exception.InvalidTransactionException;
 import br.com.alecrin.picpay_simplificado_backend.wallet.Wallet;
 import br.com.alecrin.picpay_simplificado_backend.wallet.WalletRepository;
 import br.com.alecrin.picpay_simplificado_backend.wallet.WalletType;
@@ -16,7 +18,10 @@ public class TransactionService {
         this.walletRepository = walletRepository;
     }
 
+    @Transactional
     public Transaction create(Transaction transaction) {
+
+        validate(transaction);
 
         var newTransaction = transactionRepository.save(transaction);
 
@@ -35,8 +40,8 @@ public class TransactionService {
         walletRepository.findById(transaction.payee())
             .map(payee -> walletRepository.findById(transaction.payer())
                 .map(payer -> isTransactionValid(transaction, payer) ? transaction : null)
-                .orElseThrow())
-                .orElseThrow();
+                .orElseThrow(() -> new InvalidTransactionException("Invalid transaction - %s".formatted(transaction))))
+                .orElseThrow(() -> new InvalidTransactionException("Invalid transaction - %s".formatted(transaction)));
     }
 
     private boolean isTransactionValid(Transaction transaction, Wallet payer) {
