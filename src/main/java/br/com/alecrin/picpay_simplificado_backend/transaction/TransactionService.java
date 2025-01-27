@@ -3,7 +3,7 @@ package br.com.alecrin.picpay_simplificado_backend.transaction;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import br.com.alecrin.picpay_simplificado_backend.exception.InvalidTransactionException;
+import br.com.alecrin.picpay_simplificado_backend.authorization.AuthorizerService;
 import br.com.alecrin.picpay_simplificado_backend.wallet.Wallet;
 import br.com.alecrin.picpay_simplificado_backend.wallet.WalletRepository;
 import br.com.alecrin.picpay_simplificado_backend.wallet.WalletType;
@@ -12,10 +12,12 @@ import br.com.alecrin.picpay_simplificado_backend.wallet.WalletType;
 public class TransactionService {
     private final TransactionRepository transactionRepository;
     private final WalletRepository walletRepository;
+    private final AuthorizerService authorizerService;
 
-    public TransactionService(TransactionRepository transactionRepository, WalletRepository walletRepository) {
+    public TransactionService(TransactionRepository transactionRepository, WalletRepository walletRepository, AuthorizerService authorizerService) {
         this.transactionRepository = transactionRepository;
         this.walletRepository = walletRepository;
+        this.authorizerService = authorizerService;
     }
 
     @Transactional
@@ -27,6 +29,13 @@ public class TransactionService {
 
         var wallet = walletRepository.findById(transaction.payer()).get();
         walletRepository.save(wallet.debit(transaction.value()));
+
+        // - Chamar serviços externos
+        // authorize transaction
+        authorizerService.authorize(transaction);
+
+
+        
 
         return newTransaction;
     }

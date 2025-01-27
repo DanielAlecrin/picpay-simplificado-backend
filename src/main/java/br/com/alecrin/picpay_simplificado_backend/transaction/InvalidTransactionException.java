@@ -1,4 +1,4 @@
-package br.com.alecrin.picpay_simplificado_backend.exception;
+package br.com.alecrin.picpay_simplificado_backend.transaction;
 
 public class InvalidTransactionException extends RuntimeException {
 
